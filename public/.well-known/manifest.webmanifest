@@ -1,0 +1,21 @@
+{
+  "name": "RDP",
+  "short_name": "RDP",
+  "description": "IronRDP WebAssembly client with direct TCP through IWA Direct Sockets",
+  "version": "1.1.0",
+  "update_manifest_url": "https://krysof.github.io/rdp/iwa-updates.json",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#08111f",
+  "background_color": "#07101d",
+  "icons": [
+    { "src": "/icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }
+  ],
+  "permissions_policy": {
+    "direct-sockets": ["self"],
+    "direct-sockets-private": ["self"],
+    "cross-origin-isolated": ["self"]
+  }
+}

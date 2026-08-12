@@ -3,5 +3,10 @@ node_modules/
 dist/
 vendor/IronRDP/crates/ironrdp-web/pkg/
 vendor/IronRDP/target/
+crates/ironrdp-iwa/pkg/
+crates/ironrdp-iwa/target/
+*.wbn
+*.swbn
+*.pem
 *.log
 .DS_Store

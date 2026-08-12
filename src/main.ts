@@ -16,7 +16,6 @@ import {
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnecting';
 
 type SavedSettings = {
-    gateway: string;
     destination: string;
     username: string;
     domain: string;
@@ -42,6 +41,9 @@ const sessionLoading = requiredElement<HTMLElement>('session-loading');
 const sessionHost = requiredElement<HTMLElement>('session-host');
 const sessionStatus = requiredElement<HTMLElement>('session-status');
 const toast = requiredElement<HTMLElement>('toast');
+const iwaRequired = requiredElement<HTMLElement>('iwa-required');
+
+const directSocketsAvailable = 'TCPSocket' in globalThis && window.location.protocol === 'isolated-app:';
 
 let userInteraction: UserInteraction | undefined;
 let engineReady = false;
@@ -52,6 +54,16 @@ let toastTimer: number | undefined;
 restoreSettings();
 configureSecretToggles();
 configureToolbar();
+requiredElement<HTMLButtonElement>('forget-certificates').addEventListener('click', () => {
+    try {
+        Object.keys(localStorage)
+            .filter((key) => key.startsWith('rdp.certificate.'))
+            .forEach((key) => localStorage.removeItem(key));
+        showToast('已清除证书信任记录', 'success');
+    } catch {
+        showToast('无法访问本地证书信任记录', 'error');
+    }
+});
 
 const remoteDesktop = document.createElement('iron-remote-desktop') as IronRemoteDesktopElement;
 remoteDesktop.setAttribute('scale', field<HTMLSelectElement>('initial-scale').value);
@@ -87,6 +99,14 @@ const resizeObserver = new ResizeObserver(() => {
 resizeObserver.observe(sessionStage);
 
 async function initialiseEngine(): Promise<void> {
+    if (!directSocketsAvailable) {
+        iwaRequired.hidden = false;
+        engineStatus.className = 'engine-status error';
+        engineStatus.innerHTML = '<i></i>需要 IWA';
+        showFormError('当前是普通网页环境。请安装下方的 rdp.swbn；GitHub Pages 版本不具备原始 TCP 权限。');
+        return;
+    }
+
     try {
         await init('WARN');
         engineReady = true;
@@ -108,7 +128,7 @@ async function connect(): Promise<void> {
     clearFormError();
 
     const values = readConnectionValues();
-    const validationError = validate(values.gateway, values.destination, values.token);
+    const validationError = validate(values.destination, values.trustCertificate);
     if (validationError !== undefined) {
         showFormError(validationError);
         return;
@@ -137,9 +157,9 @@ async function connect(): Promise<void> {
             .withUsername(values.username)
             .withPassword(values.password)
             .withDestination(values.destination)
-            .withProxyAddress(values.gateway)
+            .withProxyAddress('iwa-direct://local')
             .withServerDomain(values.domain)
-            .withAuthToken(values.token)
+            .withAuthToken('iwa-direct')
             .withDesktopSize(getDesktopSize())
             .withExtension(displayControl(true))
             .build();
@@ -222,40 +242,25 @@ function configureSecretToggles(): void {
 
 function readConnectionValues() {
     return {
-        gateway: field<HTMLInputElement>('gateway').value.trim(),
         destination: field<HTMLInputElement>('destination').value.trim(),
-        token: field<HTMLInputElement>('token').value.trim(),
         username: field<HTMLInputElement>('username').value.trim(),
         domain: field<HTMLInputElement>('domain').value.trim(),
         password: field<HTMLInputElement>('password').value,
         clipboard: field<HTMLInputElement>('clipboard').checked,
+        trustCertificate: field<HTMLInputElement>('trust-certificate').checked,
         scale: field<HTMLSelectElement>('initial-scale').value as ScaleName,
     };
 }
 
-function validate(gateway: string, destination: string, token: string): string | undefined {
-    if (gateway === '' || destination === '' || token === '') {
-        return '请填写 Gateway 地址、目标主机和授权令牌。';
+function validate(destination: string, trustCertificate: boolean): string | undefined {
+    if (destination === '') {
+        return '请填写目标主机。';
     }
-
-    let gatewayUrl: URL;
-    try {
-        gatewayUrl = new URL(gateway);
-    } catch {
-        return 'Gateway 地址不是有效的 WebSocket URL。';
-    }
-
-    if (!['ws:', 'wss:'].includes(gatewayUrl.protocol)) {
-        return 'Gateway 地址必须以 wss://（或本地开发时的 ws://）开头。';
-    }
-
-    const localGateway = ['localhost', '127.0.0.1', '[::1]'].includes(gatewayUrl.hostname);
-    if (window.location.protocol === 'https:' && gatewayUrl.protocol !== 'wss:' && !localGateway) {
-        return 'HTTPS 页面只能连接安全的 wss:// Gateway。';
-    }
-
     if (!/^\[?[\w.:%-]+\]?(?::\d+)?$/.test(destination)) {
         return '目标主机格式无效，请使用主机名或 IP，可附加端口（例如 10.0.0.8:3389）。';
+    }
+    if (!trustCertificate) {
+        return '连接前请确认你信任目标主机提供的 RDP 证书。';
     }
 
     return undefined;
@@ -301,7 +306,6 @@ function restoreAfterTermination(): void {
     connectButton.classList.remove('working');
     connectButton.querySelector('span')!.textContent = '连接远程桌面';
     field<HTMLInputElement>('password').value = '';
-    field<HTMLInputElement>('token').value = '';
     updateConnectAvailability();
 }
 
@@ -311,7 +315,6 @@ function updateConnectAvailability(): void {
 
 function saveSettings(values: ReturnType<typeof readConnectionValues>): void {
     const settings: SavedSettings = {
-        gateway: values.gateway,
         destination: values.destination,
         username: values.username,
         domain: values.domain,
@@ -331,7 +334,6 @@ function restoreSettings(): void {
         const raw = localStorage.getItem('rdp.settings');
         if (raw !== null) {
             const saved = JSON.parse(raw) as Partial<SavedSettings>;
-            setIfString('gateway', saved.gateway);
             setIfString('destination', saved.destination);
             setIfString('username', saved.username);
             setIfString('domain', saved.domain);
@@ -347,7 +349,7 @@ function restoreSettings(): void {
     }
 
     const query = new URLSearchParams(window.location.search);
-    for (const name of ['gateway', 'destination', 'username', 'domain'] as const) {
+    for (const name of ['destination', 'username', 'domain'] as const) {
         const value = query.get(name);
         if (value !== null) {
             field<HTMLInputElement>(name).value = value;
@@ -373,13 +375,13 @@ function describeConnectionError(error: unknown): string {
         case IronErrorKind.AccessDenied:
             return '目标主机拒绝了访问，请确认账户具备远程桌面权限。';
         case IronErrorKind.ProxyConnect:
-            return '无法连接 Gateway，请检查地址、证书和网络访问。';
+            return '无法打开 Direct Socket，请检查 IWA 权限、目标地址和网络访问。';
         case IronErrorKind.NegotiationFailure:
             return 'RDP 安全协商失败，请检查目标主机的 RDP/NLA 配置。';
         case IronErrorKind.RDCleanPath: {
             const details = error.rdcleanpathDetails();
             const code = details?.httpStatusCode !== undefined ? `（HTTP ${details.httpStatusCode}）` : '';
-            return `Gateway 拒绝或无法转发连接${code}，请检查 JET token 与目标地址。`;
+            return `RDP 连接失败${code}，请检查目标地址与主机配置。`;
         }
         default:
             return `IronRDP 连接失败：${error.backtrace()}`;

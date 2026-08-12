@@ -8,6 +8,7 @@
       content="基于 IronRDP 与 WebAssembly 的开源浏览器 RDP 客户端"
     />
     <meta name="theme-color" content="#08111f" />
+    <link rel="manifest" href="./.well-known/manifest.webmanifest" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <title>RDP · IronRDP Web Client</title>
   </head>
@@ -23,7 +24,7 @@
             </svg>
           </span>
           <span>RDP</span>
-          <span class="brand-tag">WASM</span>
+          <span class="brand-tag">IWA</span>
         </a>
         <nav class="header-actions" aria-label="页面导航">
           <a href="#how-it-works">工作方式</a>
@@ -37,15 +38,15 @@
       <main>
         <section id="connect-view" class="connect-view">
           <div class="hero-copy">
-            <div class="eyebrow"><span></span> OPEN SOURCE · RUNS LOCALLY</div>
-            <h1>你的 Windows，<br /><em>就在浏览器里。</em></h1>
+            <div class="eyebrow"><span></span> ISOLATED WEB APP · DIRECT TCP</div>
+            <h1>你的 Windows，<br /><em>直连，不中转。</em></h1>
             <p class="hero-lead">
-              IronRDP 在 WebAssembly 中处理完整的 RDP 会话。无插件、无客户端安装，凭据只在当前浏览器会话中使用。
+              IronRDP 在 WebAssembly 中处理完整 RDP 会话，IWA Direct Sockets 直接连接目标主机，不再依赖 Gateway。
             </p>
             <div class="feature-row">
               <div class="feature-item">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6l7-3Z"></path><path d="m9 12 2 2 4-5"></path></svg>
-                <div><strong>本地处理</strong><span>凭据不会发送到本站</span></div>
+                <div><strong>端到端直连</strong><span>无代理、无中转服务器</span></div>
               </div>
               <div class="feature-item">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17 9 5l4 12 3-8 4 8"></path></svg>
@@ -56,9 +57,9 @@
             <div id="how-it-works" class="route-card">
               <span class="route-label">连接路径</span>
               <div class="route-flow">
-                <span>浏览器</span><i></i><span>Devolutions Gateway</span><i></i><span>RDP 主机</span>
+                <span>RDP IWA</span><i></i><span>TCP + TLS</span><i></i><span>RDP 主机</span>
               </div>
-              <p>浏览器不能直接打开 TCP 端口，因此需要 Gateway 将安全 WebSocket 转发到目标主机。</p>
+              <p>需要以 Isolated Web App 安装；普通网页没有原始 TCP 权限。Chrome 会在连接私有网络时请求授权。</p>
             </div>
           </div>
 
@@ -72,15 +73,13 @@
             </div>
 
             <form id="connection-form" novalidate>
+              <div id="iwa-required" class="iwa-required" hidden>
+                <strong>请安装 IWA 版本</strong>
+                <p>GitHub Pages 只能作为下载页，不能直接访问 TCP。下载 signed web bundle 后，在支持 IWA 的 Chrome 中安装。</p>
+                <a href="https://github.com/krysof/rdp/releases/latest/download/rdp.swbn">下载 rdp.swbn</a>
+              </div>
               <div class="form-section">
-                <div class="section-title"><span>01</span> 网络</div>
-                <label class="field full">
-                  <span>Gateway WebSocket 地址</span>
-                  <div class="input-wrap">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"></path></svg>
-                    <input id="gateway" name="gateway" type="url" value="wss://gateway.example.com/jet/rdp" autocomplete="url" spellcheck="false" required />
-                  </div>
-                </label>
+                <div class="section-title"><span>01</span> 直连目标</div>
                 <label class="field full">
                   <span>目标主机</span>
                   <div class="input-wrap">
@@ -88,14 +87,7 @@
                     <input id="destination" name="destination" type="text" placeholder="192.168.1.10:3389" autocomplete="off" spellcheck="false" required />
                   </div>
                 </label>
-                <label class="field full">
-                  <span>Gateway 授权令牌</span>
-                  <div class="input-wrap">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="m11 12 8-8M15 8l2 2M17 6l2 2"></path></svg>
-                    <input id="token" name="token" type="password" placeholder="粘贴短期 JET token" autocomplete="off" required />
-                    <button class="reveal-button" type="button" data-reveal="token" aria-label="显示或隐藏令牌">显示</button>
-                  </div>
-                </label>
+                <p class="direct-note">通过 Direct Sockets 打开原始 TCP 连接，默认端口 3389。</p>
               </div>
 
               <div class="form-section credentials">
@@ -140,6 +132,12 @@
                 </label>
               </div>
 
+              <label class="certificate-warning">
+                <input id="trust-certificate" type="checkbox" />
+                <span><strong>启用首次信任（TOFU）证书校验</strong><small>首次连接会显示 SHA-256 指纹供你确认；之后证书变化将中止连接，避免发送凭据。</small></span>
+              </label>
+              <button id="forget-certificates" class="forget-certificates" type="button">清除已信任的证书指纹</button>
+
               <div id="form-error" class="form-error" role="alert" hidden></div>
               <button id="connect-button" class="connect-button" type="submit" disabled>
                 <span>连接远程桌面</span>
@@ -147,7 +145,7 @@
               </button>
               <p class="privacy-note">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
-                密码和令牌不会保存到 LocalStorage，也不会经过本站服务器。
+                密码不会保存到 LocalStorage，也不会经过本站服务器。
               </p>
             </form>
           </section>
@@ -181,7 +179,7 @@
             <div id="session-loading" class="session-loading">
               <div class="loader-orbit"><span></span></div>
               <strong>正在建立 RDP 会话</strong>
-              <span>Gateway 已收到连接请求，请稍候…</span>
+              <span>正在建立 Direct Socket 与 TLS 会话，请稍候…</span>
             </div>
             <div id="desktop-mount" class="desktop-mount"></div>
           </div>
@@ -190,7 +188,7 @@
 
       <footer>
         <span>Powered by <a href="https://github.com/Devolutions/IronRDP" target="_blank" rel="noreferrer">IronRDP</a></span>
-        <span>Apache-2.0 / MIT · 连接由你的 Gateway 提供</span>
+        <span>Apache-2.0 / MIT · IWA Direct Sockets 直连</span>
       </footer>
 
       <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

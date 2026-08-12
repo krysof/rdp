@@ -37,7 +37,7 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: vendor/IronRDP
+          workspaces: crates/ironrdp-iwa -> target
           cache-on-failure: true
 
       - name: Install wasm-pack
@@ -46,7 +46,7 @@ jobs:
       - name: Install web dependencies
         run: npm ci
 
-      - name: Build IronRDP WASM client
+      - name: Build IronRDP IWA download page
         run: npm run build
 
       - name: Configure Pages
