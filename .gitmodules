@@ -1,0 +1,3 @@
+[submodule "vendor/IronRDP"]
+	path = vendor/IronRDP
+	url = https://github.com/Devolutions/IronRDP.git

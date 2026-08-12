@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
+    "skipLibCheck": true,
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "strict": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "vite.config.ts"],
+  "exclude": ["vendor/IronRDP/**/test/**", "vendor/IronRDP/**/*.test.ts"]
+}

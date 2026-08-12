@@ -1,0 +1,7 @@
+.hapi/
+node_modules/
+dist/
+vendor/IronRDP/crates/ironrdp-web/pkg/
+vendor/IronRDP/target/
+*.log
+.DS_Store

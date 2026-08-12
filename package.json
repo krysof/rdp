@@ -1,0 +1,26 @@
+{
+  "name": "rdp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A browser RDP client powered by IronRDP and WebAssembly",
+  "scripts": {
+    "dev": "vite",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build": "npm run build:wasm && tsc --noEmit && vite build",
+    "build:web": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "svelte": "^5.56.8",
+    "ua-parser-js": "^1.0.40"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/ua-parser-js": "^0.7.39",
+    "typescript": "~5.7.3",
+    "vite": "^6.2.0"
+  }
+}
